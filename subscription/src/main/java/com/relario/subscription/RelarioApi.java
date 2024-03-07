@@ -3,12 +3,13 @@ package com.relario.subscription;
 
 import static com.relario.subscription.SubscriptionUtils.API_KEY;
 import static com.relario.subscription.SubscriptionUtils.SHARED_PREFS_FILE;
+import static com.relario.subscription.SubscriptionUtils.HttpClient;
+import static com.relario.subscription.SubscriptionUtils.JsonUtil;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
-import com.google.gson.Gson;
 import com.relario.subscription.models.NewTransaction;
 import com.relario.subscription.models.Transaction;
 
@@ -18,7 +19,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
@@ -26,8 +26,7 @@ import okhttp3.Response;
 public class RelarioApi {
     private static final String BASE_URL = "https://payment.relario.com/api/web";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private static final OkHttpClient client = new OkHttpClient();
-    private static final Gson gson = new Gson();
+
     private static final String TAG = RelarioApi.class.getSimpleName();
 
 
@@ -37,10 +36,10 @@ public class RelarioApi {
                 .url(BASE_URL + "/transactions/" + transactionId)
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .get().build();
-        try (Response response = client.newCall(request).execute()) {
+        try (Response response = HttpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new Exception("Unexpected code " + response);
             if (response.body() == null) throw new Exception("Empty response " + response);
-            return gson.fromJson(response.body().string(), Transaction.class);
+            return JsonUtil.fromJson(response.body().string(), Transaction.class);
         } catch (Exception e) {
             Log.e(TAG, "Exception when getTransaction", e);
             throw e;
@@ -49,17 +48,17 @@ public class RelarioApi {
 
     public static Transaction createTransaction(Context context, NewTransaction newTransaction) throws Exception {
         Log.i(TAG, "Create transaction: " + newTransaction.toString());
-        String json = gson.toJson(newTransaction);
+        String json = JsonUtil.toJson(newTransaction);
         Log.i(TAG, "New Transaction: " + json);
         RequestBody body = RequestBody.create(json, JSON);
         String apiKey = getApiKey(context);
         Request request = new Request.Builder().url(BASE_URL + "/transactions")
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .post(body).build();
-        try (Response response = client.newCall(request).execute()) {
+        try (Response response = HttpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new Exception("Unexpected code " + response);
             if (response.body() == null) throw new Exception("Empty response " + response);
-            return gson.fromJson(response.body().string(), Transaction.class);
+            return JsonUtil.fromJson(response.body().string(), Transaction.class);
         } catch (Exception e) {
             Log.e(TAG, "Exception when createTransaction", e);
             throw e;

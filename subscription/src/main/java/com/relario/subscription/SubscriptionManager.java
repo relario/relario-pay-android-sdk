@@ -2,6 +2,7 @@ package com.relario.subscription;
 
 import static com.relario.subscription.SubscriptionUtils.API_KEY;
 import static com.relario.subscription.SubscriptionUtils.CUSTOMER_ID_INPUT_KEY;
+import static com.relario.subscription.SubscriptionUtils.JsonUtil;
 import static com.relario.subscription.SubscriptionUtils.PRODUCT_ID_INPUT_KEY;
 import static com.relario.subscription.SubscriptionUtils.PRODUCT_NAME_INPUT_KEY;
 import static com.relario.subscription.SubscriptionUtils.SHARED_PREFS_FILE;
@@ -169,7 +170,7 @@ public class SubscriptionManager {
         }
     }
 
-    public List<Transaction> retrieveTransactions() {
+    public String retrieveTransactions() {
         SharedPreferences sharedPref = context.getSharedPreferences(SHARED_PREFS_FILE, Context.MODE_PRIVATE);
         String transactionLog = sharedPref.getString(WORKER_RESULT_KEY, "");
 
@@ -199,7 +200,7 @@ public class SubscriptionManager {
             }
         }
 
-        return transactions;
+        return JsonUtil.toJson(transactions);
     }
 
 
