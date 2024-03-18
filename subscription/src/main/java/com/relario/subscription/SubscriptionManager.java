@@ -1,6 +1,6 @@
 package com.relario.subscription;
 
-import static com.relario.subscription.SubscriptionUtils.API_KEY;
+import static androidx.core.content.ContextCompat.RECEIVER_EXPORTED;
 import static com.relario.subscription.SubscriptionUtils.CUSTOMER_ID_INPUT_KEY;
 import static com.relario.subscription.SubscriptionUtils.JsonUtil;
 import static com.relario.subscription.SubscriptionUtils.PRODUCT_ID_INPUT_KEY;
@@ -18,10 +18,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.telephony.SmsManager;
-import android.telephony.SmsMessage;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.core.content.ContextCompat;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.ExistingPeriodicWorkPolicy;
@@ -163,7 +163,7 @@ public class SubscriptionManager {
                     }
                 }
             };
-            context.registerReceiver(smsSentReceiver, new IntentFilter(sentAction));
+            ContextCompat.registerReceiver(context, smsSentReceiver, new IntentFilter(sentAction), RECEIVER_EXPORTED);
 
             // Send the SMS
             smsManager.sendTextMessage("+" + nbr, null, smsBody, sentPI, deliveredPI);
