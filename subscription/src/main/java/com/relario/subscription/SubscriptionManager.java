@@ -30,6 +30,7 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
 import com.relario.subscription.models.Transaction;
+import com.relario.subscription.models.NewTransaction;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -42,6 +43,8 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+
+import androidx.work.OneTimeWorkRequest;
 
 public class SubscriptionManager {
     private static final String TAG = SubscriptionManager.class.getSimpleName();
@@ -83,6 +86,8 @@ public class SubscriptionManager {
     }
 
     public void subscribe(int interval, String timeUnit, int smsCount, String productId, String productName, String customerId) {
+        SubscriptionUtils.validateTransactionParams(smsCount, productId, productName, customerId);
+
         WorkManager workManager = WorkManager.getInstance(context);
         storeSubscriptionConfiguration(interval, timeUnit, smsCount, productId, productName, customerId);
         Data data = new Data.Builder()
@@ -111,14 +116,14 @@ public class SubscriptionManager {
     }
 
     public void sendSms(String[] phoneNumberList, String smsBody) {
-        SmsManager smsManager = SmsManager.getDefault();
+        SmsManager smsManager = SubscriptionUtils.getSmsManager(context);
         Stream.of(phoneNumberList).forEach((nbr) -> {
             smsManager.sendTextMessage("+" + nbr, null, smsBody, null, null);
         });
     }
 
     public void sendSms(String[] phoneNumberList, String smsBody, SmsStatusCallback callback) {
-        SmsManager smsManager = SmsManager.getDefault();
+        SmsManager smsManager = SubscriptionUtils.getSmsManager(context);
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failureCount = new AtomicInteger(0);
         List<String> failedNumbers = Collections.synchronizedList(new ArrayList<>());
@@ -170,7 +175,128 @@ public class SubscriptionManager {
         }
     }
 
-    public String retrieveTransactions() {
+    /**
+     * Dispatches the call on a background thread without caring about catching the server response.
+     */
+    public void purchaseOneTime(int smsCount, String productId, String productName, String customerId) {
+        purchaseOneTime(smsCount, productId, productName, customerId, null);
+    }
+
+    /**
+     * Dispatches the call on a background thread and returns the server's response.
+     */
+    public void purchaseOneTime(int smsCount, String productId, String productName, String customerId, PurchaseCallback callback) {
+        SubscriptionUtils.validateTransactionParams(smsCount, productId, productName, customerId);
+
+        SubscriptionUtils.SdkExecutor.execute(() -> {
+            try {
+                NewTransaction newTransaction = new NewTransaction();
+                newTransaction.setSmsCount(smsCount);
+                newTransaction.setProductId(productId);
+                newTransaction.setProductName(productName);
+                newTransaction.setCustomerId(customerId);
+                newTransaction.setCustomerIpAddress(RelarioApi.getCurrentIP());
+
+                Transaction transaction = RelarioApi.createTransaction(context, newTransaction);
+
+                if (callback != null) {
+                    callback.onSuccess(transaction);
+                }
+
+                // Save the transaction log locally so "Check Status" can find it later
+                storeOneTimeResult(transaction.getTransactionId());
+
+                SmsManager smsManager = SubscriptionUtils.getSmsManager(context);
+                if (transaction.getPhoneNumbersList() != null) {
+                    transaction.getPhoneNumbersList().forEach((nbr) -> {
+                        smsManager.sendTextMessage("+" + nbr, null, transaction.getSmsBody() + " Date: " + new Date(), null, null); //
+                    });
+                }
+
+            } catch (Exception e) {
+                // Forward any API/network failures to the client app
+                if (callback != null) {
+                    callback.onError(e);
+                } else {
+                    Log.e(TAG, "One-time purchase failed", e);
+                }
+            }
+        });
+    }
+
+    /**
+     * Helper method to ensure one-time logs are saved identically to the worker logs,
+     * allowing retrieveTransactions() to fetch updates for one-time purchases too.
+     */
+    private void storeOneTimeResult(String transactionId) {
+        SharedPreferences sharedPref = context.getSharedPreferences(SHARED_PREFS_FILE, Context.MODE_PRIVATE); //
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()); //
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC")); //
+        String dateTime = dateFormat.format(new Date()); //
+
+        String entry = transactionId + "_" + dateTime; //
+        String existingLog = sharedPref.getString(WORKER_RESULT_KEY, ""); //
+        String updatedLog = existingLog.isEmpty() ? entry : existingLog + "|" + entry; //
+
+        sharedPref.edit().putString(WORKER_RESULT_KEY, updatedLog).apply(); //
+    }
+
+    /**
+     * Public method for external developers to check the real-time status
+     * of a single transaction ID from the server.
+     *
+     * @param transactionId The unique ID of the transaction to check.
+     * @param callback      The callback to handle the transaction result or error.
+     */
+    public void checkTransactionStatus(String transactionId, TransactionDetailsCallback callback) {
+        if (transactionId == null || transactionId.isEmpty()) {
+            if (callback != null) {
+                callback.onError(new IllegalArgumentException("Transaction ID cannot be null or empty"));
+            }
+            return;
+        }
+
+        SubscriptionUtils.SdkExecutor.execute(() -> {
+            try {
+                Transaction transaction = RelarioApi.getTransaction(context, transactionId);
+
+                if (callback != null) {
+                    callback.onResult(transaction);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e);
+                }
+            }
+        });
+    }
+
+    /**
+     * Asynchronously retrieves full transaction execution histories.
+     * Handles background execution threading natively to prevent NetworkOnMainThreadException.
+     *
+     * @param callback The callback to receive the compiled JSON array string or handling exceptions.
+     */
+    public void retrieveTransactions(TransactionHistoryCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback cannot be null");
+        }
+
+        // Reuse your background executor logic to isolate network pipes safely
+        new Thread(() -> {
+            try {
+                // Call the original heavy processing loop method
+                String jsonResult = retrieveTransactions();
+
+                // Deliver the result
+                callback.onResult(jsonResult);
+            } catch (Exception e) {
+                callback.onError(e);
+            }
+        }).start();
+    }
+
+    private String retrieveTransactions() {
         SharedPreferences sharedPref = context.getSharedPreferences(SHARED_PREFS_FILE, Context.MODE_PRIVATE);
         String transactionLog = sharedPref.getString(WORKER_RESULT_KEY, "");
 
@@ -202,6 +328,4 @@ public class SubscriptionManager {
 
         return JsonUtil.toJson(transactions);
     }
-
-
 }

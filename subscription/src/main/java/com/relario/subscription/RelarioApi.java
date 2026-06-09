@@ -66,32 +66,16 @@ public class RelarioApi {
     }
 
     public static String getCurrentIP() {
-        HttpURLConnection urlConnection = null;
-        StringBuilder result = new StringBuilder();
-
-        try {
-            URL url = new URL("https://checkip.amazonaws.com/");
-            urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.setRequestMethod("GET");
-
-            BufferedReader br = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-            String line;
-            while ((line = br.readLine()) != null) {
-                result.append(line);
+        Request request = new Request.Builder().url("https://checkip.amazonaws.com/").get().build();
+        try (Response response = HttpClient.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                return response.body().string().trim();
             }
-            br.close();
-
-            return result.toString().trim(); // Trim to remove any newline characters
         } catch (Exception e) {
-            e.printStackTrace();
-            return "Error: " + e.getMessage();
-        } finally {
-            if (urlConnection != null) {
-                urlConnection.disconnect();
-            }
+            Log.e(TAG, "Failed to get current IP", e);
         }
+        return "Error: IP unavailable";
     }
-
 
     // Method to store the API key in SharedPreferences
     public static void storeApiKey(Context context, String apiKey) {
