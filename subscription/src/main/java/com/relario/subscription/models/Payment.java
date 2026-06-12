@@ -1,16 +1,16 @@
 package com.relario.subscription.models;
 
 public class Payment {
-    public int id;
-    public int transactionId;
-    public String cli;
-    public String cliMccmnc = null;
-    public String ddi;
-    public String smsBody = null;
-    public int callDuration = 0;
-    public long initiatedAt;
-    public String ipnStatus;
-    public boolean billable;
+    private int id;
+    private int transactionId;
+    private String cli;
+    private String cliMccmnc = null;
+    private String ddi;
+    private String smsBody = null;
+    private int callDuration = 0;
+    private long initiatedAt;
+    private String ipnStatus;
+    private boolean billable;
 
     public int getId() {
         return id;

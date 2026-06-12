@@ -1,32 +1,34 @@
 package com.relario.subscription.models;
 
+import androidx.annotation.NonNull;
+
 import java.util.Collections;
 import java.util.List;
 
 public class Transaction {
-    public String transactionId;
-    public int merchantId;
-    public String productId;
-    public String productName = null;
-    public String customerId;
-    public String paymentType = "sms";
-    public List<Payment> payments = Collections.emptyList();
-    public int callDuration = 0;
-    public String customerIpAddress;
-    public String customerMsisdn = null;
-    public String customerMccmnc = null;
-    public String customerCountryCode = null;
-    public String customerLanguage = null;
-    public String audioFileName = null;
-    public String clickToCallUrl = null;
-    public String androidClickToSmsUrl = null;
-    public String phoneNumber = null;
-    public List<String> phoneNumbersList = Collections.emptyList();
-    public String smsBody = null;
-    public int smsCount = 0;
-    public String status;
-    public boolean test;
-    public long createdAt;
+    private String transactionId;
+    private int merchantId;
+    private String productId;
+    private String productName = null;
+    private String customerId;
+    private String paymentType = "sms";
+    private List<Payment> payments = Collections.emptyList();
+    private int callDuration = 0;
+    private String customerIpAddress;
+    private String customerMsisdn = null;
+    private String customerMccmnc = null;
+    private String customerCountryCode = null;
+    private String customerLanguage = null;
+    private String audioFileName = null;
+    private String clickToCallUrl = null;
+    private String androidClickToSmsUrl = null;
+    private String phoneNumber = null;
+    private List<String> phoneNumbersList = Collections.emptyList();
+    private String smsBody = null;
+    private int smsCount = 0;
+    private String status;
+    private boolean test;
+    private long createdAt;
 
     public String getTransactionId() {
         return transactionId;
@@ -212,6 +214,7 @@ public class Transaction {
         this.createdAt = createdAt;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "Transaction{" +

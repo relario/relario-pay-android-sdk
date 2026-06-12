@@ -49,12 +49,12 @@ public class SubscriptionWorker extends Worker {
         try {
             Transaction transaction = RelarioApi.createTransaction(context, newTransaction);
             Log.i(TAG, "Transaction result: " + transaction.toString());
-            Log.i(TAG, "Sending sms to " + transaction.phoneNumbersList);
-            Log.i(TAG, "Message Body is [" + transaction.smsBody + "]");
-            storeResult(transaction.transactionId);
-            SmsManager smsManager = SmsManager.getDefault();
-            transaction.phoneNumbersList.forEach((nbr) -> {
-                smsManager.sendTextMessage("+" + nbr, null, transaction.smsBody + " Date: " + new Date(), null, null);
+            Log.i(TAG, "Sending sms to " + transaction.getPhoneNumbersList());
+            Log.i(TAG, "Message Body is [" + transaction.getSmsBody() + "]");
+            storeResult(transaction.getTransactionId());
+            SmsManager smsManager = SubscriptionUtils.getSmsManager(context);
+            transaction.getPhoneNumbersList().forEach((nbr) -> {
+                smsManager.sendTextMessage("+" + nbr, null, transaction.getSmsBody() + " Date: " + new Date(), null, null);
             });
             return Result.success();
         } catch (Exception e) {
